@@ -1,0 +1,62 @@
+     1                                  bits 32 ; assembling for the 32 bits architecture
+     2                                  
+     3                                  ; declare the EntryPoint (a label defining the very first instruction of the program)
+     4                                  global start        
+     5                                  
+     6                                  ; declare external functions needed by our program
+     7                                  extern exit               ; tell nasm that exit exists even if we won't be defining it
+     8                                  import exit msvcrt.dll    ; exit is a function that ends the calling process. It is defined in msvcrt.dll
+     9                                                            ; msvcrt.dll contains exit, printf and all the other important C-runtime specific functions
+    10                                  
+    11                                  ; our data is declared here (the variables needed by our program)
+    12                                  segment data use32 class=data
+    13                                      
+    14 00000000 1B7AF39D                    A dd 10011101111100110111101000011011b
+    15 00000004 00000000                    B dd 0000000000000000000000000000b
+    16 00000008 00                          C db 0000000000000000000000000000b
+    17 00000009 <res 00000001>              n resb 1
+    18                                      
+    19                                  ; our code starts here
+    20                                  segment code use32 class=code
+    21                                      start:
+    22                                          ;Given the doubleword A, obtain the integer number n represented on the bits 14-17 of A. 
+    23                                          ;Then obtain the doubleword B by rotating A n positions to the left. Finally, obtain the byte C as follows:
+    24                                                  ;the btis 0-5 of C are the same as the bits 1-6 of B
+    25                                                  ;the bits 6-7 of C are the same as the bits 17-18 of B
+    26                                          
+    27 00000000 B900000000                      mov ecx, 0
+    28                                  
+    29                                  ; 1) obtain the integer number n represented on the bits 14-17 of A        
+    30 00000005 A1[00000000]                    mov eax, [A]
+    31 0000000A 2500C00300                      and eax, 00000000000000111100000000000000b;isolate bits 14-17 1001 1101 1111 0011 0111 1010 0001 1011->0000 0000 0000 0010 1100 0000 0000 0000
+    32 0000000F C1E00E                          shl eax, 14 ; 0000 0000 0000 0010 1100 0000 0000 0000 -> 1011 0000 0000 0000 0000 0000 0000 0000
+    33 00000012 C1F81C                          sar eax, 28 ; 1011 0000 0000 0000 0000 0000 0000 0000 -> 1111 1111 1111 1111 1111 1111 1111 1011
+    34 00000015 A2[09000000]                    mov [n], al
+    35 0000001A 8A0D[09000000]                  mov cl, [n]
+    36                                         
+    37                                  ; 2) obtain the doubleword B by rotating A n positions to the left
+    38 00000020 8B1D[00000000]                  mov ebx, [A] ; ebx: 1001 1101 1111 0011 0111 1010 0001 1011 
+    39 00000026 D3C3                            rol ebx, cl  ; 1001 1101 1111 0011 0111 1010 0001 1011 -> 1011 1101 0000 1101 1100 1111 1011 1001
+    40 00000028 891D[04000000]                  mov [B], ebx
+    41                                          
+    42                                  ; 3) obtain the byte C: the bits 0-5 of C are the same as the bits 1-6 of B 
+    43                                          
+    44 0000002E B800000000                      mov eax, 0
+    45 00000033 BB00000000                      mov ebx, 0
+    46 00000038 A1[04000000]                    mov eax, [B] ; eax: 1011 1101 0000 1101 1100 1111 1011 1001
+    47 0000003D 83E07E                          and eax, 00000000000000000000000001111110b ;isolate bits 1-6 of B:0000 0000 0000 0000 0000 0000 0011 1000
+    48 00000040 D1E8                            shr eax, 1 ; 0000 0000 0000 0000 0000 0000 0011 1000 -> 0000 0000 0000 0000 0000 0000 0001 1100
+    49 00000042 09C3                            or ebx,eax ; in ebx este rezultatul
+    50                                          
+    51                                  ; 4) obtain the byte C: the bits 6-7 of C are the same as the bits 17-18 of B
+    52                                      
+    53 00000044 B800000000                      mov eax, 0
+    54 00000049 A1[04000000]                    mov eax, [B] ; eax: 1011 1101 0000 1101 1100 1111 1011 1001
+    55 0000004E 2500000600                      and eax, 00000000000001100000000000000000b ;isolate bits 17-18 of B:0000 0000 0000 0100 0000 0000 0000 0000
+    56 00000053 C1E80B                          shr eax, 11 ; 0000 0000 0000 0100 0000 0000 0000 0000 -> 0000 0000 0000 0000 0000 0000 1000 0000
+    57 00000056 09C3                            or ebx,eax ; in ebx este rezultatul
+    58 00000058 891D[08000000]                  mov [C], ebx
+    59                                   
+    60                                          ; exit(0)
+    61 0000005E 6A00                            push    dword 0      ; push the parameter for exit onto the stack
+    62 00000060 FF15[00000000]                  call    [exit]       ; call exit to terminate the program

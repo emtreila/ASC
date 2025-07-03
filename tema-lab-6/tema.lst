@@ -1,0 +1,92 @@
+     1                                  bits 32 ; assembling for the 32 bits architecture
+     2                                  
+     3                                  ; declare the EntryPoint (a label defining the very first instruction of the program)
+     4                                  global start
+     5                                  
+     6                                  ; declare external functions needed by our program
+     7                                  extern exit               ; tell nasm that exit exists even if we won't be defining it
+     8                                  import exit msvcrt.dll    ; exit is a function that ends the calling process. It is defined in msvcrt.dll
+     9                                                            ; msvcrt.dll contains exit, printf and all the other important C-runtime specific functions
+    10                                  
+    11                                  ; our data is declared here (the variables needed by our program)
+    12                                  segment data use32 class=data
+    13                                  
+    14 00000000 07563412153C2B1A            s DD 12345607h, 1A2B3C15h
+    15                                      len equ ($-s)/4   ; the length of the string
+    16 00000008 00<rept>                    d times $-s db 0
+    17 00000010 00000000                    i dd 0
+    18                                  
+    19                                  ; our code starts here
+    20                                  segment code use32 class=code
+    21                                      start:
+    22                                          ; Given an array S of doublewords, build the array of bytes D formed from bytes of doublewords sorted as unsigned numbers in ascending order.
+    23                                  
+    24 00000000 BE[00000000]                    mov esi, s              ; source index is the string of dwords s
+    25 00000005 BF[08000000]                    mov edi, d              ; destination index is the string of bytes d
+    26 0000000A FC                              cld                     ; parse the string from left to right
+    27 0000000B B902000000                      mov ecx, len            ; len iterations in loop
+    28                                  
+    29                                          start_loop:
+    30 00000010 BB04000000                          mov ebx, 4          ; loop 4 times so that an entire dword is parsed
+    31                                  
+    32                                              add_loop:
+    33 00000015 A4                                      movsb           ; load in d each byte of s
+    34                                                  
+    35 00000016 4B                                      dec ebx 
+    36 00000017 75FC                                    jnz add_loop    ; exit loop if ebx reached 0
+    37                                  
+    38 00000019 E2F5                                loop start_loop     ; process another dword
+    39                                  
+    40                                          ; sorting the string in edi using selection sort
+    41                                          
+    42 0000001B C705[10000000]0100-             mov dword [i], 1        ; current index
+    42 00000023 0000               
+    43 00000025 BF[08000000]                    mov edi, d              ; edi contains the address of d at the current index
+    44                                          
+    45                                          i_loop:
+    46 0000002A B908000000                          mov ecx, len * 4    ; length of d
+    47                                                                  ; looping through the d string until the last element
+    48                                                                  ; we can't compare the last element with the next items, because there aren't any
+    49                                              
+    50 0000002F 2B0D[10000000]                      sub ecx, dword [i]  ; substract the current index -> loop the rest elements
+    51                                              
+    52                                              
+    53 00000035 83F900                              cmp ecx, 0          ; check if we are on the last element
+    54 00000038 7E1C                                jle done            ; exit loop if so
+    55                                          
+    56 0000003A 89FE                                mov esi, edi        ; for loading each byte in AL
+    57                                              
+    58 0000003C AC                                  lodsb               ; AL now contains the byte at the current index
+    59                                  
+    60                                              
+    61                                              ; interior loop of the selection sort
+    62                                              j_loop:
+    63 0000003D 8A26                                    mov ah, byte [esi] ; mov in AH the byte at the current index in the interior loop
+    64                                                                     ; meaning the jth element
+    65                                                  
+    66 0000003F 38E0                                    cmp al, ah         ; check if the element on the ith index (current index) is greater
+    67                                                  
+    68 00000041 7E06                                    jle next           ; go to the next element if not
+    69                                                  
+    70                                                  ; switching the elements
+    71 00000043 8827                                    mov [edi], ah      ; AH is lower, move it at the current index
+    72 00000045 8806                                    mov [esi], al      ; AL is greater, move it at the jth position
+    73                                                  
+    74 00000047 88E0                                    mov al, ah         ; mov in AL the new element on the current index
+    75                                                  
+    76                                                  ; go to the next element
+    77                                                  next:
+    78 00000049 46                                          inc esi        ; increment the address contained in ESI
+    79 0000004A E2F1                                        loop j_loop    ; loop the interior for
+    80                                              
+    81                                              ; now increase the addres contained in EDI
+    82                                              ; and the current index -> go to the next element
+    83 0000004C 8305[10000000]01                    add dword [i], 1
+    84 00000053 47                                  inc edi
+    85 00000054 EBD4                                jmp i_loop
+    86                                          
+    87                                  
+    88                                          done:
+    89                                              ; exit(0)
+    90 00000056 6A00                                push    dword 0      ; push the parameter for exit onto the stack
+    91 00000058 FF15[00000000]                      call    [exit]       ; call exit to terminate the program

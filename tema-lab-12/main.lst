@@ -1,0 +1,97 @@
+     1                                  bits 32 ; assembling for the 32 bits architecture
+     2                                  
+     3                                  ; declare the EntryPoint (a label defining the very first instruction of the program)
+     4                                  global start        
+     5                                  
+     6                                  ; declare external functions needed by our program
+     7                                  extern exit, printf, scanf               ; tell nasm that exit exists even if we won't be defining it
+     8                                  import exit msvcrt.dll    ; exit is a function that ends the calling process. It is defined in msvcrt.dll
+     9                                  import printf msvcrt.dll                         ; msvcrt.dll contains exit, printf and all the other important C-runtime specific functions
+    10                                  import scanf msvcrt.dll
+    11                                  
+    12                                  extern concatenation ; my module
+    13                                  
+    14                                  ; our data is declared here (the variables needed by our program)
+    15                                  segment data use32 class=data
+    16 00000000 00000000                    n dd 0
+    17 00000004 6E3D00                      message1 db "n=", 0
+    18 00000007 256400                      format1 db "%d", 0
+    19                                      
+    20 0000000A 00<rept>                    sentence times 100 db 0 ; the sentence from the user
+    21 0000006E 257300                      format2 db "%s", 0
+    22 00000071 456E7465722073656E-         message2 db "Enter sentence: ", 0
+    22 0000007A 74656E63653A2000   
+    23 00000082 00<rept>                    final times 100 db 0
+    24                                      
+    25 000000E6 00000000                    sentence_index dd 0
+    26                                      
+    27 000000EA 257300                      format3 db "%s", 0
+    28                                      
+    29                                      
+    30                                  ; our code starts here
+    31                                  segment code use32 class=code
+    32                                      start:
+    33                                          ; Read an integer (positive number) n from keyboard. Then read n sentences containing at least n words (no validation needed).
+    34                                          ; Print the string containing the concatenation of the word i of the sentence i, for i=1,n (separated by a space).
+    35                                          ; Example: n=5
+    36                                          ; We read the following 5 sentences:
+    37                                          ; We read the following 5 sentences.
+    38                                          ; Today is monday and it is raining.
+    39                                          ; My favorite book is the one I just showed you.
+    40                                          ; It is pretty cold today.
+    41                                          ; Tomorrow I am going shopping.
+    42                                  
+    43                                          ; The string printed on the screen should be:
+    44                                          ; We is book cold shopping.
+    45                                          
+    46 00000000 68[04000000]                    push dword message1 ;showing the message n= for the user to type the value n
+    47 00000005 FF15[00000000]                  call [printf]
+    48 0000000B 83C404                          add esp, 4*1
+    49                                          
+    50 0000000E 68[00000000]                    push dword n        ; getting the value for n from the user
+    51 00000013 68[07000000]                    push dword format1
+    52 00000018 FF15[00000000]                  call [scanf]
+    53 0000001E 83C408                          add esp, 4*2
+    54                                          
+    55 00000021 8B0D[00000000]                  mov ecx, [n]
+    56                                          
+    57                                          start_loop:
+    58 00000027 51                                  push ecx
+    59                                          
+    60 00000028 68[71000000]                        push dword message2
+    61 0000002D FF15[00000000]                      call [printf]
+    62 00000033 83C404                              add esp, 4*1
+    63                                              
+    64 00000036 68[0A000000]                        push dword sentence
+    65 0000003B 68[6E000000]                        push dword format2
+    66 00000040 FF15[00000000]                      call [scanf]
+    67 00000046 83C408                              add esp, 4*2
+    68                                              
+    69                                              ; call la metoda
+    70                                              ; sentence = read sentence
+    71                                              ; final = sentence where the ith word will be added
+    72                                              ; i = index of the sentence read
+    73                                              
+    74 00000049 68[0A000000]                        push dword sentence
+    75 0000004E 68[82000000]                        push dword final
+    76 00000053 FF35[E6000000]                      push dword [sentence_index]
+    77 00000059 E8(00000000)                        call concatenation
+    78 0000005E 83C40C                              add esp, 4*3
+    79 00000061 59                                  pop ecx
+    80                                                 
+    81 00000062 8305[E6000000]01                    add dword [sentence_index], 1
+    82 00000069 E2BC                                loop start_loop
+    83                                              
+    84                                          end_loop:
+    85                                          
+    86 0000006B 68[82000000]                        push dword final
+    87 00000070 68[EA000000]                        push dword format3
+    88 00000075 FF15[00000000]                      call [printf]
+    89 0000007B 83C408                              add esp, 4*2
+    90                                              
+    91                                          
+    92                                          
+    93                                          
+    94                                          ; exit(0)
+    95 0000007E 6A00                            push    dword 0      ; push the parameter for exit onto the stack
+    96 00000080 FF15[00000000]                  call    [exit]       ; call exit to terminate the program

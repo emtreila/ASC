@@ -1,0 +1,77 @@
+     1                                  bits 32 ; assembling for the 32 bits architecture
+     2                                  
+     3                                  ; declare the EntryPoint (a label defining the very first instruction of the program)
+     4                                  global octal        
+     5                                  
+     6                                  ; declare external functions needed by our program
+     7                                  extern exit               ; tell nasm that exit exists even if we won't be defining it
+     8                                  import exit msvcrt.dll    ; exit is a function that ends the calling process. It is defined in msvcrt.dll
+     9                                                            ; msvcrt.dll contains exit, printf and all the other important C-runtime specific functions
+    10                                  extern printf            
+    11                                  import printf msvcrt.dll 
+    12                                  extern scanf             
+    13                                  import scanf msvcrt.dll  
+    14                                  
+    15                                  ; our data is declared here (the variables needed by our program)
+    16                                  segment data use32 class=data
+    17 00000000 00000000                    binary_number dd 0               ;= input binary number
+    18 00000004 257500                      format1 db "%u", 0          ; Format for scanf to accept unsigned integers
+    19                                      
+    20 00000007 00000000                    result dd 0                      ;= converted result   
+    21 0000000B 4F6374616C3A20256F-         format2 db "Octal: %o", 10, 0 ; Format for printf to display octal
+    21 00000014 0A00               
+    22                                      
+    23                                  
+    24                                  
+    25                                  ; our code starts here
+    26                                  segment code use32 class=code
+    27                                      octal:
+    28                                          ; Multiple numbers in base 2 are read from the keyboard. Display these numbers in the base 8.
+    29                                          
+    30 00000000 68[00000000]                    push binary_number         
+    31 00000005 68[04000000]                    push format1               
+    32 0000000A FF15[00000000]                  call [scanf]               
+    33 00000010 83C408                          add esp, 8                 
+    34                                  
+    35 00000013 A1[00000000]                    mov eax, [binary_number]   ; binary_number into EAX
+    36 00000018 E813000000                      call binary_to_octal       
+    37 0000001D A3[07000000]                    mov [result], eax          
+    38                                          
+    39                                          push [result]              
+    39          ******************       error: operation size not specified
+    40 00000022 68[0B000000]                    push format2               
+    41 00000027 FF15[00000000]                  call [printf]              
+    42 0000002D 83C408                          add esp, 8 
+    43                                  
+    44                                      binary_to_octal:
+    45                                          ; Input: EAX = binary number
+    46                                          ; Output: EAX = decimal equivalent 
+    47                                  
+    48 00000030 31DB                            xor ebx, ebx               ; EBX = result accumulator
+    49 00000032 31C9                            xor ecx, ecx               ; ECX = bit position counter
+    50                                  
+    51                                      convert_loop:
+    52 00000034 85C0                            test eax, eax              ; Check if the binary number is 0
+    53 00000036 740E                            jz done                    ; If 0, exit loop
+    54                                  
+    55 00000038 89C2                            mov edx, eax               ; Copy EAX to EDX
+    56 0000003A 83E201                          and edx, 1                 ; Isolate the least significant bit
+    57 0000003D D3E2                            shl edx, cl                ; Shift left by the bit position (ECX)
+    58 0000003F 01D3                            add ebx, edx               ; Add to result in EBX
+    59                                  
+    60 00000041 D1E8                            shr eax, 1                 ; Shift binary number right by 1 bit
+    61 00000043 41                              inc ecx                    ; Increment the bit position counter
+    62 00000044 EBEE                            jmp convert_loop           ; Repeat until EAX is 0
+    63                                  
+    64                                      done:
+    65 00000046 89D8                            mov eax, ebx               ; Move the result back to EAX
+    66 00000048 C3                              ret                        ; Return to caller
+    67                                              
+    68                                  
+    69                                          ; Exit the program
+    70 00000049 6A00                            push dword 0               ; Push exit code 0
+    71 0000004B FF15[00000000]                  call [exit]                ; Call exit to terminate the program
+    72                                          
+    73                                          ; exit(0)
+    74 00000051 6A00                            push    dword 0      ; push the parameter for exit onto the stack
+    75 00000053 FF15[00000000]                  call    [exit]       ; call exit to terminate the program
